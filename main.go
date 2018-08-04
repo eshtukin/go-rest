@@ -48,7 +48,7 @@ var twitterClient *http.Client
 
 func GetPullRequests(w http.ResponseWriter, r *http.Request) {
 
-	response, _ := http.Get("https://api.github.com/repos/dotnet/cli/pulls")
+	response, _ := http.Get("https://api.github.com/repos/eshtukin/go-rest/pulls")
 	buf, _ := ioutil.ReadAll(response.Body)
 
 	err := json.Unmarshal(buf, &pulls)
