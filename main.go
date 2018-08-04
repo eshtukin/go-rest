@@ -8,20 +8,31 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/mrjones/oauth"
 )
 
 const (
-	consumerKeyTwitterAPI       = "z78iW4hDPxogvzFPrVE2yK9f4"
-	consumerSecretKeyTwitterAPI = "xPAVry5TWGcQbkfqjTSyNzBRqg6nalFUGNVkAdcwkWfZNDEdbW"
-	accessTokenTwitter          = "1025108478107377664-OKOvtFSz4cbaHwgngFbYon582PBt8m"
-	accessTokenSecretTwitter    = "cILWcTmd3Fxh7oqVzvtXP1O7vUknnXBrFED1XCOFbC778"
-
 	baseUrlTwitter    = "https://api.twitter.com/1.1/"
 	postRelUrlTwitter = "statuses/update.json?status="
 )
+
+var (
+	consumerKeyTwitterAPI       = getEnv("TWITTER_CONSUMER_KEY")
+	consumerSecretKeyTwitterAPI = getEnv("TWITTER_CONSUMER_SECRET")
+	accessTokenTwitter          = getEnv("TWITTER_ACCESS_TOKEN")
+	accessTokenSecretTwitter    = getEnv("TWITTER_ACCESS_TOKEN_SECRET")
+)
+
+func getEnv(name string) string {
+	val := os.Getenv(name)
+	if val == "" {
+		panic("missing environment valirable " + name)
+	}
+	return val
+}
 
 // PullRequest represents a GitHub pull request on a repository.
 type PullRequest struct {
@@ -57,7 +68,7 @@ func GetPullRequests(w http.ResponseWriter, r *http.Request) {
 		if item.CreatedAt.After(prevTime) {
 
 			// Construct new tweet
-			postTweet("Second test of this Twitter account")
+			postTweet("Third test of this Twitter account")
 			break
 		}
 	}
@@ -69,39 +80,12 @@ func GetPullRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func postTweet(tweet string) {
-
-	// –url ‘https://api.twitter.com/1.1/statuses/update.json?status=Test%20tweet.%20Setting%20up%20account’
-	// –header ‘authorization: OAuth oauth_consumer_key=”YOUR_CONSUMER_KEY”,
-	// 							  oauth_nonce=”AUTO_GENERATED_NONCE”,
-	// 							  oauth_signature=”AUTO_GENERATED_SIGNATURE”,
-	// 							  oauth_signature_method=”HMAC-SHA1”,
-	// 							  oauth_timestamp=”AUTO_GENERATED_TIMESTAMP”,
-	// 							  oauth_token=”USERS_ACCESS_TOKEN”,
-	// 							  oauth_version=”1.0”’
-	// –header ‘content-type: application/json’`
-
-	// req, err := http.NewRequest("POST", "http://example.com", nil)
-	// // ...
-	// req.Header.Add("If-None-Match", `W/"wyzzy"`)
-	// resp, err := client.Do(req)
-
 	var buff bytes.Buffer
 	buff.WriteString(baseUrlTwitter)
 	buff.WriteString(postRelUrlTwitter)
 	buff.WriteString(url.QueryEscape(tweet))
 	urlString := buff.String()
-
 	fmt.Printf("%s \n", urlString)
-
-	// u, err := url.Parse(urlString)
-
-	// //	u, err := url.Parse("http://example.com/path with spaces")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Println(u.EscapedPath())
-
-	//	url = url.EscapedPath()
 
 	req, err := http.NewRequest("POST", urlString, nil)
 	req.Header.Add("content-type", `application/json`)
@@ -113,7 +97,6 @@ func postTweet(tweet string) {
 }
 
 func setTwitterClient() {
-
 	c := oauth.NewConsumer(
 		consumerKeyTwitterAPI,
 		consumerSecretKeyTwitterAPI,
@@ -133,7 +116,6 @@ func setTwitterClient() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	twitterClient = client
 }
 
