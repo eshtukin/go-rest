@@ -48,7 +48,7 @@ var twitterClient *http.Client
 
 func GetPullRequests(w http.ResponseWriter, r *http.Request) {
 
-	response, _ := http.Get("https://api.github.com/repos/dotnet/cli/pulls")
+	response, _ := http.Get("https://api.github.com/repos/eshtukin/go-rest/pulls")
 	buf, _ := ioutil.ReadAll(response.Body)
 
 	err := json.Unmarshal(buf, &pulls)
@@ -56,8 +56,8 @@ func GetPullRequests(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	fmt.Printf("\n %s", "How many PRs?     ")
-	fmt.Printf("%v \n", len(pulls))
+	fmt.Printf("\n %s  %v \n", "How many PRs?     ", len(pulls))
+//	fmt.Printf("%v \n", len(pulls))
 
 	// temp:  replace with read from file
 	prevTime := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
@@ -66,10 +66,8 @@ func GetPullRequests(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("%+v \n", item)
 
 		if item.CreatedAt.After(prevTime) {
-
 			// Construct new tweet
-			postTweet("Third test of this Twitter account")
-			break
+			postTweet(" PR id: " + strconv.FormatInt(item.ID) + "   Title: " + item.Title)
 		}
 	}
 
