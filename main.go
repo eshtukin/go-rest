@@ -9,30 +9,25 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/mrjones/oauth"
 )
 
 const (
+	baseUrlGitHub     = "https://api.github.com/repos/"
+	userRepoGutHub    = "eshtukin/go-rest/"
+	pullsRelUrlGitHub = "pulls?direction=asc"
+
 	baseUrlTwitter    = "https://api.twitter.com/1.1/"
 	postRelUrlTwitter = "statuses/update.json?status="
-)
+	tweetLimit        = 280
 
-var (
-	consumerKeyTwitterAPI       = getEnv("TWITTER_CONSUMER_KEY")
-	consumerSecretKeyTwitterAPI = getEnv("TWITTER_CONSUMER_SECRET")
-	accessTokenTwitter          = getEnv("TWITTER_ACCESS_TOKEN")
-	accessTokenSecretTwitter    = getEnv("TWITTER_ACCESS_TOKEN_SECRET")
+	baseLineFileName = "baseline.txt"
+	timeStampLayout  = "2006-01-02 15:04:05"
+	initialBaseLine  = "2006-01-02 15:04:05"
 )
-
-func getEnv(name string) string {
-	val := os.Getenv(name)
-	if val == "" {
-		panic("missing environment valirable " + name)
-	}
-	return val
-}
 
 // PullRequest represents a GitHub pull request on a repository.
 type PullRequest struct {
@@ -44,47 +39,143 @@ type PullRequest struct {
 }
 
 var pulls []PullRequest
+
+var gitHubClient *http.Client
 var twitterClient *http.Client
 
-func GetPullRequests(w http.ResponseWriter, r *http.Request) {
+var baseLineFile *os.File
 
-	response, _ := http.Get("https://api.github.com/repos/eshtukin/go-rest/pulls")
-	buf, _ := ioutil.ReadAll(response.Body)
+var (
+	consumerKeyTwitterAPI       = getEnv("TWITTER_CONSUMER_KEY")
+	consumerSecretKeyTwitterAPI = getEnv("TWITTER_CONSUMER_SECRET")
+	accessTokenTwitter          = getEnv("TWITTER_ACCESS_TOKEN")
+	accessTokenSecretTwitter    = getEnv("TWITTER_ACCESS_TOKEN_SECRET")
+)
 
-	err := json.Unmarshal(buf, &pulls)
-	if err != nil {
-		panic(err)
+func getEnv(name string) string {
+	val := os.Getenv(name)
+	if val == "" {
+		log.Fatal("missing environment valirable " + name)
 	}
+	return val
+}
 
-	fmt.Printf("\n %s  %v \n", "How many PRs?     ", len(pulls))
-//	fmt.Printf("%v \n", len(pulls))
+func ProcessPullRequests(w http.ResponseWriter, r *http.Request) {
 
-	// temp:  replace with read from file
-	prevTime := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	// Get full details about given repository Pull Requests
+	getPullsFromGitHub()
 
+	// Figure out timestamp used in previous run
+	openBaseLineFile()
+	defer baseLineFile.Close()
+	prevTime := bringPrevBaseLine()
+	currTime := time.Now()
+
+	// Loop through all open pull requests
 	for _, item := range pulls {
 		fmt.Printf("%+v \n", item)
-
+		// filtering out old pull requests
 		if item.CreatedAt.After(prevTime) {
-			// Construct new tweet
-			postTweet(" PR id: " + strconv.FormatInt(item.ID) + "   Title: " + item.Title)
+			tweet := constructTweet(&item)
+			postTweet(tweet)
 		}
 	}
+	// Keep in the file new baseline for future runs
+	saveNewBaseLine(&currTime)
+}
 
-	fmt.Printf("%s \n", "End")
+func getPullsFromGitHub() {
 
-	// write current time to a file for future calls
-	// currTime := time.Now()
+	// Construct entire URL string
+	var buff bytes.Buffer
+	buff.WriteString(baseUrlGitHub)
+	buff.WriteString(userRepoGutHub)
+	buff.WriteString(pullsRelUrlGitHub)
+	urlString := buff.String()
+
+	// Create and send GET request
+	req, err := http.NewRequest("GET", urlString, nil)
+	req.Header.Add("content-type", `application/json`)
+	// TODO:  add Authorization header - to get 5000 GitHub requests per hour
+	response, err := gitHubClient.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	// Fill in PullRequest array with only required data
+	buf, _ := ioutil.ReadAll(response.Body)
+	// TODO:  add pagination handling
+	err = json.Unmarshal(buf, &pulls)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func openBaseLineFile() {
+
+	// Open file for read/write or create if not exists
+	f, err := os.OpenFile(baseLineFileName, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	baseLineFile = f
+}
+
+func bringPrevBaseLine() time.Time {
+
+	// If exists - take timestamp of previous run from the file
+	var timeStr string
+	buf, _ := ioutil.ReadAll(baseLineFile)
+	if len(buf) > 0 {
+		// Previous timestamp from the file
+		timeStr = string(buf)
+	} else {
+		// First run - nothing yet in the file
+		timeStr = initialBaseLine
+	}
+
+	t, err := time.Parse(timeStampLayout, timeStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return t
+}
+
+func saveNewBaseLine(time *time.Time) {
+
+	// Override file content from the beginning
+	_, err := baseLineFile.WriteAt([]byte(time.Format(timeStampLayout)), 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func constructTweet(item *PullRequest) string {
+
+	// Summary PR string comprising PR number, CreateAt, and Title values
+	tweet := "PR#: " + strconv.Itoa(item.Number) + "; CreatedAt: " + item.CreatedAt.Format(timeStampLayout) + "; Title: " + item.Title
+
+	// Retain <= 280 characters allowed on Twitter
+	result := []rune(tweet)
+	tweetLength := len(result)
+	if tweetLength > tweetLimit {
+		tweetLength = tweetLimit
+	}
+	return string(result[:tweetLength])
 }
 
 func postTweet(tweet string) {
+
+	// Construct entire URL string
 	var buff bytes.Buffer
 	buff.WriteString(baseUrlTwitter)
 	buff.WriteString(postRelUrlTwitter)
+	// Spaces in tweet message should be encoded with '+' or '%20'
 	buff.WriteString(url.QueryEscape(tweet))
 	urlString := buff.String()
-	fmt.Printf("%s \n", urlString)
 
+	// Create and send POST request
 	req, err := http.NewRequest("POST", urlString, nil)
 	req.Header.Add("content-type", `application/json`)
 	response, err := twitterClient.Do(req)
@@ -92,6 +183,10 @@ func postTweet(tweet string) {
 		log.Fatal(err)
 	}
 	defer response.Body.Close()
+}
+
+func setGitHubClient() {
+	gitHubClient = &http.Client{}
 }
 
 func setTwitterClient() {
@@ -119,10 +214,10 @@ func setTwitterClient() {
 
 func main() {
 
+	setGitHubClient()
 	setTwitterClient()
 
-	http.HandleFunc("/pulls", GetPullRequests)
+	http.HandleFunc("/pulls", ProcessPullRequests)
 
 	log.Fatal(http.ListenAndServe(":8002", nil))
-
 }
