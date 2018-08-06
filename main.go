@@ -61,7 +61,6 @@ func getEnv(name string) string {
 }
 
 func ProcessPullRequests(w http.ResponseWriter, r *http.Request) {
-
 	// Get full details about given repository Pull Requests
 	getPullsFromGitHub()
 
@@ -85,7 +84,6 @@ func ProcessPullRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPullsFromGitHub() {
-
 	// Construct entire URL string
 	var buff bytes.Buffer
 	buff.WriteString(baseUrlGitHub)
@@ -113,7 +111,6 @@ func getPullsFromGitHub() {
 }
 
 func openBaseLineFile() {
-
 	// Open file for read/write or create if not exists
 	f, err := os.OpenFile(baseLineFileName, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
@@ -123,7 +120,6 @@ func openBaseLineFile() {
 }
 
 func bringPrevBaseLine() time.Time {
-
 	// If exists - take timestamp of previous run from the file
 	var timeStr string
 	buf, _ := ioutil.ReadAll(baseLineFile)
@@ -143,7 +139,6 @@ func bringPrevBaseLine() time.Time {
 }
 
 func saveNewBaseLine(time *time.Time) {
-
 	// Override file content from the beginning
 	_, err := baseLineFile.WriteAt([]byte(time.Format(timeStampLayout)), 0)
 	if err != nil {
@@ -152,7 +147,6 @@ func saveNewBaseLine(time *time.Time) {
 }
 
 func constructTweet(item *PullRequest) string {
-
 	// Summary PR string comprising PR number, CreateAt, and Title values
 	tweet := "PR#: " + strconv.Itoa(item.Number) + "; CreatedAt: " + item.CreatedAt.Format(timeStampLayout) + "; Title: " + item.Title
 
@@ -166,7 +160,6 @@ func constructTweet(item *PullRequest) string {
 }
 
 func postTweet(tweet string) {
-
 	// Construct entire URL string
 	var buff bytes.Buffer
 	buff.WriteString(baseUrlTwitter)
