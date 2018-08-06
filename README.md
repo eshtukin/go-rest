@@ -4,24 +4,24 @@
 
 2.	Twitter account with API access: @goplay25984392
 
-3.  Before running the program you have to define 4 environment variables (which are required for access Twitter dev account via API):
+3.  	Before running the program you have to define 4 environment variables (which are required for access Twitter dev account via API):
 
-        TWITTER_CONSUMER_KEY
-        TWITTER_CONSUMER_SECRET
-        TWITTER_ACCESS_TOKEN
-        TWITTER_ACCESS_TOKEN_SECRET
+		TWITTER_CONSUMER_KEY
+		TWITTER_CONSUMER_SECRET
+		TWITTER_ACCESS_TOKEN
+		TWITTER_ACCESS_TOKEN_SECRET
 
 4.	Credentials for them are not kept in GitHub, and will be provided separately in twitter.env file using template 
 
-        <env variable>=<value>
+	        <env variable>=<value>
   
-    The quickest way to define env variable on Linux is:
+    	The quickest way to define env variable on Linux is:
     
-        >for line in $(cat twitter.env)
+        	>for line in $(cat twitter.env)
       
-    On Windows you can create batch file with 4 rows like this:
+    	On Windows you can create batch file with 4 rows like this:
     
-		    set <env variable>=<value>
+    		set <env variable>=<value>
         
 5.	For Twitter OAuth authorization 3rd party package github.com/mrjones/oauth is used
 
@@ -29,9 +29,13 @@
 
 7.	You start the program running command
 
-        >go run main.go
+        	>go run main.go
         
-    The program gathers PRs (either opened after the previous run, or on the first run - all open PRs).
+    	Then in a browser of your choice you reach URL 
+	
+		localhost:8002/pulls
+		
+	which will gather PRs (either opened after the previous run, or on the first run - all open PRs).
     
 8.	The timestamp of current run is kept in the file baseline.txt for future run
 
